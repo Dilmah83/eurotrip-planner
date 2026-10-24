@@ -70,15 +70,19 @@ async function crime(q,b){const p=pt(b);if(!p)return[400,{error:'lat and lon are
  catch(e){return[200,{status:'unavailable',message:'Official crime figures couldn\u2019t be loaded for this point. It may be outside coverage.',source:'https://data.police.uk/'}]}}
 const notYet=name=>async()=>[501,{error:name+' search is not connected yet. Use the provider\'s own website and record the booking manually.'}];
 const liveData=require('./live-data')({getJSON,cached});
-const railData=require('./rail-data')({getJSON,cached});
-const ROUTES={'/api/rail':railData,'/api/rates':liveData.rates,'/api/safety':liveData.safety,'/api/nearby':nearby,'/api/reverse':reverse,'/api/geocode':geocode,'/api/crime':crime,'/api/weather':weather,'/api/fx':fx,'/api/flights':flights,'/api/hotels':notYet('Accommodation'),'/api/transport':notYet('Train and bus'),'/api/restaurants':notYet('Restaurant and menu')};
+const swissRail=require('./rail-data')({getJSON,cached});
+const germanRail=require('./national-rail')({cached});
+const braveSearch=require('./brave-search')({getJSON});
+const railData=(q,b)=>{const provider=q.get('provider')||'ch';return provider==='ch'?swissRail(q):provider==='de'?germanRail(q,b):Promise.resolve([400,{error:'This country uses its official timetable website. Select Switzerland or Germany for an in-app API lookup.'}])};
+const ROUTES={'/api/search':braveSearch,'/api/rail':railData,'/api/rates':liveData.rates,'/api/safety':liveData.safety,'/api/nearby':nearby,'/api/reverse':reverse,'/api/geocode':geocode,'/api/crime':crime,'/api/weather':weather,'/api/fx':fx,'/api/flights':flights,'/api/hotels':notYet('Accommodation'),'/api/transport':notYet('Train and bus'),'/api/restaurants':notYet('Restaurant and menu')};
 const send=(res,code,body,type='application/json')=>{res.writeHead(code,{'Content-Type':type,'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':type==='application/json'?'no-store':'no-cache'});res.end(typeof body==='string'||Buffer.isBuffer(body)?body:JSON.stringify(body))};
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://x');
- if(u.pathname==='/api/health')return send(res,200,{ok:true});
+ if(u.pathname==='/api/health')return send(res,200,{ok:true,release:'national-rail-brave-v1'});
  if(u.pathname.startsWith('/api/')){
   if(limited(req.socket.remoteAddress||'?'))return send(res,429,{error:'Too many requests. Wait a minute.'});
   if(TOKEN&&req.headers['x-access-token']!==TOKEN)return send(res,401,{error:'Access code needed'});
-  if(u.pathname==='/api/status')return send(res,200,{ok:true,version:3,authenticated:!!TOKEN});
+  if(u.pathname==='/api/status')return send(res,200,{ok:true,version:3,authenticated:!!TOKEN,braveConfigured:!!process.env.BRAVE_SEARCH_API_KEY,dbConfigured:!!(process.env.DB_CLIENT_ID&&process.env.DB_API_KEY)});
+  if(u.pathname==='/api/search'&&req.method!=='POST')return send(res,405,{error:'Use POST for web search. API keys must not be sent in URLs.'});
   const h=ROUTES[u.pathname];if(!h)return send(res,404,{error:'Unknown endpoint'});
   try{const bd=req.method==='POST'?await body(req):{};const[c,o]=await h(u.searchParams,bd);return send(res,c,o)}catch(e){return send(res,502,{error:'The data provider is unavailable. Try again, or use the official website.'})}}
  let p=path.normalize(path.join(PUB,decodeURIComponent(u.pathname==='/'?'/index.html':u.pathname)));

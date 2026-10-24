@@ -8,11 +8,21 @@ Use Node 20 or newer (Node 18 remains supported). Run `npm ci`, `npm test`, then
 
 On Render, use `node server.js` as the start command. Set `ACCESS_TOKEN` to protect live API calls, and `CONTACT_EMAIL` for OpenStreetMap requests. Keep API credentials in environment variables. Under **More → Connection and access code**, enter your access code and test it. Public `/api/health` checks uptime; `/api/status` checks access to protected APIs.
 
-## Home rail data
+## National rail timetables and saved API connections
 
-Home now shows the next train journey from the itinerary, editable departure/arrival stations, a date/time connection search, and a current departure board. Data is fetched on demand through `/api/rail`, protected by the existing access code. The Swiss Transport API supplies some international connections; coverage is not Europe-wide. No-results and provider failures do not establish that no trains run. Only supplied prognosis fields are labelled live; other times remain scheduled. Prices, Eurail pass-seat availability and reservation confirmation are not provided. Exact station names usually give better results. Departures are cached for one minute and connections for five minutes.
+Home → **National rail timetables** now has a saved country/provider selector. Switzerland uses the existing Swiss Transport API without a key. Germany uses the official Deutsche Bahn Timetables API after you connect credentials. Other listed European countries open an official operator timetable website in a new tab; these are links, not working in-app APIs. The Other Europe/international option opens the Eurail timetable. No claim of complete European operator coverage is made.
 
-Source and API terms/documentation: https://transport.opendata.ch/docs.html. Eurail operator timetable link is provided separately; this is not a Eurail account integration.
+For Germany, create an application at https://developers.deutschebahn.com/db-api-marketplace/apis/start and subscribe to **Timetables**. Under **More → API connections**, save both the DB Client ID and Client Secret/API key. From Home select Germany, enter an exact station name or 7-digit EVA ID and tap **Departures now**. Ambiguous names return station choices. The board covers the current and next hour in Europe/Berlin; live predictions, platform changes and cancellations are shown only when returned by DB. If changes fail, the board explicitly falls back to scheduled times. This API does not provide point-to-point journey planning; use the DB website link for that.
+
+Swiss date/time connection searches and current departure boards remain available. International coverage varies; missing results or unpublished timetables do not mean no trains run. No fares, pass-seat inventory or reservation confirmation is supplied. Refresh is manual, not background polling. Responses are cached for one minute (boards) or five minutes (Swiss journeys). DB cache entries are scoped by a credential fingerprint, never raw keys.
+
+**More → API connections → Save Brave key** remembers your Brave Web Search API key in this browser. **Travel web search · Brave** uses it for public-web travel searches (one provider request per click); snippets are unverified leads, not train schedules or prices. Provider charges and limits apply. The existing app access code remains separate and protects the backend APIs. New search requests use POST bodies, not key-bearing URLs; API responses and secrets are excluded from service-worker caches.
+
+Device keys are in localStorage (not encrypted), so use a trusted device. They survive reopening the same browser until removed with the corresponding button or website data is cleared. They do not sync between devices or apps and are excluded from trip records, JSON backups and offline travel packs. Blocked storage displays an error instead of claiming success. Saved keys are not validated merely by saving: test a timetable or a search. If you used the hotel app, paste the same Brave key separately here.
+
+For server-managed credentials, Render environment variables may instead provide `BRAVE_SEARCH_API_KEY`, `DB_CLIENT_ID`, and `DB_API_KEY`. Device keys override server defaults for those requests. A shared server Brave key requires `ACCESS_TOKEN` to prevent public use of a billed key. Never commit actual credentials. All upstream destinations are fixed in the backend; no arbitrary proxy is provided. Source docs: https://transport.opendata.ch/docs.html and https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables and https://api-dashboard.search.brave.com/api-reference/web/search/get.
+
+Tests cover saved/reopened/removed keys, storage failure, exclusion from trip exports, country selection, authenticated endpoints, DB station disambiguation and midnight handling, predicted-versus-scheduled fields, provider failures, and Brave key handling/escaping. DB and Brave responses are mocked; a real credential and iPhone check is still needed for live-provider validation.
 
 ## Current update: travel essentials
 
@@ -43,7 +53,7 @@ Existing trip storage uses the same `eurotrip.v1` key. Data migrates in place; e
 
 Weather: Open-Meteo, approximately 16 days ahead. Exchange rates: Frankfurter reference rates, not bank/card rates. Nearby places: OpenStreetMap/Overpass and Nominatim; no ratings or verified pricing. Maps: Leaflet/OpenStreetMap. Official UK crime counts: data.police.uk, subject to coverage and delay. Directions open in Apple or Google Maps. Live providers can be unavailable or change policies; check the provider's own site before relying on results.
 
-Flight endpoint: optional provider adapter requiring `FLIGHTS_API_KEY`; no flight-search UI and no verified provider integration is claimed. Hotels, train/bus timetables, menus, ratings, accounts, cloud sync and push notifications are not connected. Enter bookings manually and use official operator websites.
+Flight endpoint: optional provider adapter requiring `FLIGHTS_API_KEY`; no flight-search UI and no verified provider integration is claimed. Hotel booking, other national rail APIs, bus timetables, menus, ratings, accounts, cloud sync and push notifications are not connected. Enter bookings manually and use official operator websites.
 
 ## Update and iPhone checks
 
