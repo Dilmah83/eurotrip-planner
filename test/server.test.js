@@ -1,0 +1,8 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+process.env.ACCESS_TOKEN='test-code';const server=require('../server');let base;
+test.before(async()=>{await new Promise(r=>server.listen(0,'127.0.0.1',r));base='http://127.0.0.1:'+server.address().port});
+test.after(()=>new Promise(r=>server.close(r)));
+test('health is public but status and APIs require access code',async()=>{assert.equal((await fetch(base+'/api/health')).status,200);assert.equal((await fetch(base+'/api/status')).status,401);assert.equal((await fetch(base+'/api/geocode?q=Paris')).status,401);const r=await fetch(base+'/api/status',{headers:{'x-access-token':'test-code'}});assert.equal(r.status,200);assert.equal((await r.json()).version,3)});
+test('app shell files are served with expected types',async()=>{for(const [file,type] of [['/','text/html'],['/app.js','text/javascript'],['/planner.js','text/javascript'],['/sw.js','text/javascript'],['/manifest.webmanifest','application/manifest+json']]){const r=await fetch(base+file);assert.equal(r.status,200);assert.ok(r.headers.get('content-type').startsWith(type))}});
+test('invalid lookups fail before contacting providers',async()=>{for(const url of ['/api/weather?date=bad','/api/fx?from=!!!&to=AUD','/api/geocode?q=a'])assert.equal((await fetch(base+url,{headers:{'x-access-token':'test-code'}})).status,400)});
+test('forecast beyond horizon and same currency have useful responses',async()=>{const h={'x-access-token':'test-code'};assert.equal((await (await fetch(base+'/api/weather?city=Paris&date=2030-01-01',{headers:h})).json()).status,'out-of-range');assert.equal((await (await fetch(base+'/api/fx?from=AUD&to=AUD',{headers:h})).json()).rate,1)});

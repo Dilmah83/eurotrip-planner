@@ -1,1 +1,16 @@
-{"name":"eurotrip-planner","version":"2.0.0","private":true,"engines":{"node":">=18"},"scripts":{"start":"node server.js","test":"node --test test/server.test.js"}}
+{
+  "name": "eurotrip-planner",
+  "version": "3.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.6",
+    "linkedom": "^0.18.14"
+  }
+}
