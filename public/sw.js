@@ -1,4 +1,4 @@
-const CACHE='eurotrip-v3-20261024',SHELL=['./','./index.html','./app.js','./planner.js','./manifest.webmanifest','./icon-180.png','./icon-512.png'];
+const CACHE='eurotrip-v4-20261024',SHELL=['./','./index.html','./app.js','./planner.js','./live-ui.js','./manifest.webmanifest','./icon-180.png','./icon-512.png'];
 async function cacheApp(){const c=await caches.open(CACHE);await c.addAll(SHELL);}
 self.addEventListener('install',event=>event.waitUntil(cacheApp()));
 self.addEventListener('activate',event=>event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('eurotrip-')&&k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()])));
