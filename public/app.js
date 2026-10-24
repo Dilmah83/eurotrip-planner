@@ -65,7 +65,7 @@ function trip(){const s=S.setup;const f=(k,l,t='text')=>`<label>${l}</label><inp
 function daysV(){const ds=visibleDays();if(!ds.length)return `<h1>Days</h1>${dayControls()}<p class="sub">Set departure and return dates in the Trip tab to see each day.</p>`;
  return `<h1>Days</h1>${dayControls()}<p class="sub">Times are local to the destination. Add activities or open a destination search.</p>`+ds.map((d,i)=>{const dest=destOn(d),as=S.acts.filter(a=>a.date===d).sort((a,b)=>a.time.localeCompare(b.time));const sum=as.reduce((n,a)=>n+(toHome({amt:+a.cost||0,cur:a.cur||cur()})||0),0);
  return `<div class="card"><div class="row sp"><h3>${fmtD(d)}</h3><span class="tag t-n">${destinationsOn(d).map(x=>esc(x.city)).join(' → ')||'No destination'}</span></div>
- ${as.map((a,j)=>{const clash=as.some((b,k)=>k!==j&&b.time===a.time&&a.time);return `<div class="act"><div class="row sp"><b>${esc(a.time)||'Any time'} ${esc(a.title)}${a.zone?' ('+esc(a.zone)+')':''}</b><span>${a.cost?esc(a.cur||cur())+' '+(+a.cost).toFixed(2):''}</span></div>${clash?'<span class="tag t-warn">Same start time as another activity</span>':''}
+ ${as.map((a,j)=>{const clash=as.some((b,k)=>k!==j&&b.time===a.time&&a.time);return `<div class="act"><div class="row sp"><b>${esc(a.time)||'Any time'} ${esc(a.title)}${a.zone?' ('+esc(a.zone)+')':''}</b><span></span></div>${clash?'<span class="tag t-warn">Same start time as another activity</span>':''}
  <div class="row" style="margin-top:4px"><button class="alt sm" data-mv="${esc(a.id)}|-1">← Day</button><button class="alt sm" data-mv="${esc(a.id)}|1">Day →</button><button class="alt sm" data-edit="acts|${esc(a.id)}">Edit</button><button class="alt sm" data-dela="${esc(a.id)}">Delete</button></div></div>`}).join('')||'<span class="sub">Nothing planned.</span>'}
  <div class="g2" style="margin-top:8px"><input data-t="${d}" type="time" aria-label="Start time"><input data-n="${d}" type="number" placeholder="Cost (${cur()})" aria-label="Cost"></div>
  <input data-a="${d}" placeholder="New activity" style="margin-top:6px" aria-label="Activity">
@@ -117,16 +117,16 @@ async function apiP(p,b){return request(p,b)}
 function locate(){if(!navigator.geolocation){N.err='This browser has no location service. Search for a place instead.';render();return}
  N.busy='Finding your location…';N.err='';render();
  navigator.geolocation.getCurrentPosition(p=>setPos(p.coords.latitude,p.coords.longitude,'GPS',p.coords.accuracy),e=>{N.busy='';N.err=e.code===1?'Location is turned off for this site. On iPhone, go to Settings, Privacy and Security, Location Services, Safari Websites, or search for a place below.':e.code===2?'Your phone couldn’t work out its position. Search for a place instead.':'Finding your location took too long. Try again or search for a place.';render()},{enableHighAccuracy:true,timeout:15000,maximumAge:60000})}
-async function setPos(lat,lon,src,acc){N.pos={lat,lon,src,acc};N.err='';N.crime=null;N.found=[];N.busy='Finding places…';render();
- const[rv,nb]=await Promise.allSettled([apiP('/api/reverse',{lat,lon}),apiP('/api/nearby',{lat,lon,radius:N.r,cat:N.cat})]);N.busy='';
+async function setPos(lat,lon,src,acc){const requestSeq=N.seq=(N.seq||0)+1;N.pos={lat,lon,src,acc};N.err='';N.crime=null;N.found=[];N.busy='Finding places…';render();
+ const[rv,nb]=await Promise.allSettled([apiP('/api/reverse',{lat,lon}),apiP('/api/nearby',{lat,lon,radius:N.r,cat:N.cat})]);if(requestSeq!==N.seq)return;N.busy='';
  if(rv.status==='fulfilled'){N.label=rv.value.label;N.cc=rv.value.cc;N.country=rv.value.country}else{N.label='';N.cc='';N.country=''}
- if(nb.status==='fulfilled'){N.res=nb.value.items;N.wx=nb.value.weather;N.capped=nb.value.capped;N.at=nb.value.fetchedAt}else{N.res=[];N.err='Couldn’t load places: '+nb.reason.message+'. This needs the backend running. Try again, or use the official tourism website.'}
+ if(nb.status==='fulfilled'){N.res=nb.value.items;N.wx=nb.value.weather;N.capped=nb.value.capped;N.at=nb.value.fetchedAt}else{N.res=[];N.err='Couldn’t load places: '+nb.reason.message+'. The place provider did not respond. Try Refresh or search a different area.'}
  render()}
 const refetch=()=>{if(N.pos)setPos(N.pos.lat,N.pos.lon,N.pos.src,N.pos.acc)};
 async function nsearch(){const q=((document.getElementById('nq')||{}).value||'').trim();if(!q)return toast('Type a place first.');N.q=q;N.busy='Searching…';N.err='';render();
  try{const j=await api('/api/geocode?q='+encodeURIComponent(q));N.found=j.results;N.busy='';if(!j.results.length)N.err='No match. Try a city or street name.';render()}catch(e){N.busy='';N.err='Search failed: '+e.message;render()}}
-async function ncrime(){N.busy='Loading official crime figures…';render();try{N.crime=await apiP('/api/crime',{lat:N.pos.lat,lon:N.pos.lon})}catch(e){N.crime={status:'unavailable',message:e.message}}N.busy='';render()}
-function nclear(){Object.assign(N,{pos:null,label:'',cc:'',country:'',res:[],wx:null,at:null,found:[],q:'',crime:null,busy:'',err:'',capped:false,now:false});render()}
+async function ncrime(){if(!N.pos)return;const key=N.pos.lat+','+N.pos.lon;N.busy='Loading official crime figures…';render();let data;try{data=await apiP('/api/crime',{lat:N.pos.lat,lon:N.pos.lon})}catch(e){data={status:'unavailable',message:e.message}}if(!N.pos||N.pos.lat+','+N.pos.lon!==key)return;N.crime=data;N.busy='';render()}
+function nclear(){N.seq=(N.seq||0)+1;Object.assign(N,{pos:null,label:'',cc:'',country:'',res:[],wx:null,at:null,found:[],q:'',crime:null,busy:'',err:'',capped:false,now:false});render()}
 const fm=d=>d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(1)+' km';
 const dirG=x=>'https://www.google.com/maps/dir/?api=1&destination='+x.lat+','+x.lon+'&travelmode=walking',dirA=x=>'https://maps.apple.com/?dirflg=w&daddr='+x.lat+','+x.lon;
 function nearList(){const wet=N.wx&&(N.wx.rainProb>=60||N.wx.snow>0.5),maxD=N.now?(N.time/3)*80:1e9;
@@ -142,10 +142,12 @@ function card(x){const wet=N.wx&&(N.wx.rainProb>=60||N.wx.snow>0.5);
  <div class="sub" style="margin:6px 0 0">Source: <a target="_blank" rel="noopener" href="https://www.openstreetmap.org/${esc(x.id)}">OpenStreetMap</a>${x.edited?', last edited '+fmtD(x.edited.slice(0,10)):''}. Community data, so confirm before you go.</div></div>`}
 function drawMap(){try{const el=document.getElementById('map');if(!el||!N.pos)return;if(typeof L==='undefined'){el.textContent='The map couldn’t load. You may be offline.';return}
  const m=L.map(el).setView([N.pos.lat,N.pos.lon],N.r>=10000?10:N.r>=5000?12:N.r>=1000?14:15);L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(m);
- L.circleMarker([N.pos.lat,N.pos.lon],{radius:9,color:'#fff',weight:3,fillColor:'#14213d',fillOpacity:1}).addTo(m).bindPopup('You are here');
+ L.circleMarker([N.pos.lat,N.pos.lon],{radius:9,color:'#fff',weight:3,fillColor:'#14213d',fillOpacity:1}).addTo(m).bindPopup(N.pos.src==='GPS'?'Your location':'Searched location');
  nearList().slice(0,80).forEach(x=>L.circleMarker([x.lat,x.lon],{radius:7,color:'#fff',weight:2,fillColor:COL[x.kind]||'#555',fillOpacity:.95}).addTo(m).bindPopup('<b>'+esc(x.name)+'</b><br>'+esc(x.kind)+', '+fm(x.dist)+'<br><a target="_blank" rel="noopener" href="'+dirG(x)+'">Directions</a>'))}catch(e){}}
 function crimeV(c){if(c.status!=='ok')return `<div class="note t-warn">${esc(c.message||'No figures available.')} <a target="_blank" rel="noopener" href="${esc(c.source||'https://data.police.uk/')}">data.police.uk</a></div>`;
  return `<b>Recorded incidents ${esc(c.area)}</b><div class="sub" style="margin:0">${esc(c.measure)}. Latest data published ${esc(c.published)}.</div>
+ ${c.fetchedAt?'<p class="sub">Fetched '+esc(new Date(c.fetchedAt).toLocaleString('en-AU'))+'</p>':''}
+ ${c.months.length>1?'<p>Change from preceding month: '+(c.months[0].total-c.months[1].total)+' reported incidents. Counts, not population-adjusted rates.</p>':''}
  ${c.months.map(m=>`<div class="row sp"><span>${esc(m.month)}</span><b>${m.total}</b></div>`).join('')}
  <div class="sub" style="margin:6px 0 2px">Latest month by type:</div>${Object.entries(c.months[0].by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="row sp"><span>${esc(k.replace(/-/g,' '))}</span><span>${v}</span></div>`).join('')||'<span class="sub">None recorded.</span>'}
  <div class="sub" style="margin-top:6px">${esc(c.limits)} Source: <a target="_blank" rel="noopener" href="${esc(c.source)}">data.police.uk</a>.</div>`}
@@ -173,7 +175,7 @@ function near(){const L2=N.pos?nearList():[],late=N.wx&&(()=>{const h=new Date(D
  ${late?'<div class="note t-warn">It’s late. Check the last public transport times, and consider a licensed taxi or a reputable rideshare app.</div>':''}
  <div id="map"></div><div class="sub">Map colours: ${Object.entries(COL).map(([k,c])=>`<span style="color:${c}">●</span> ${esc(k)}`).join(', ')}</div>
  ${N.capped?'<div class="note t-warn">Many places found, so this is only a sample. Choose a smaller distance or one type.</div>':''}
- ${L2.map(card).join('')||'<p class="sub">No matching places from this source. Try a larger distance or fewer filters.</p>'}
+ ${L2.map(card).join('')||(N.err?'': '<p class="sub">No matching places from this source. Try a larger distance or fewer filters.</p>')}
  ${safetyBlock()}`:''}`}
 function hint(a,b){const s=(a+'>'+b).toLowerCase(),has=x=>s.includes(x);
  if(has('singapore'))return['Flight','Flight. A rail pass doesn’t cover it.'];
@@ -212,7 +214,7 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
  if(d.adddest!==undefined){const c=v('dc'),k=v('dk'),f=v('df'),t=v('dt');if(!c||!k||!f||!t)return toast('Fill in city, country and both dates.');if(t<f)return toast('Leave date must be after arrival.');S.dests.push({id:uid(),city:c,country:k,from:f,to:t});S.dests.sort((a,b)=>a.from.localeCompare(b.from))}
  else if(d.deld!==undefined)S.dests=S.dests.filter(x=>x.id!==d.deld);
  else if(d.up!==undefined||d.dn!==undefined){const i=+(d.up??d.dn),j=d.up!==undefined?i-1:i+1;if(S.dests[j])[S.dests[i],S.dests[j]]=[S.dests[j],S.dests[i]]}
- else if(d.adda!==undefined){const day=d.adda,q=s=>document.querySelector(`[data-${s}="${day}"]`),ti=q('a').value.trim();if(!ti)return toast('Type an activity first.');S.acts.push({id:uid(),date:day,time:q('t').value,title:ti,cost:q('n').value,cur:cur()})}
+ else if(d.adda!==undefined){const day=d.adda,q=s=>document.querySelector(`[data-${s}="${day}"]`),ti=q('a').value.trim();if(!ti)return toast('Type an activity first.');S.acts.push({id:uid(),date:day,time:q('t').value,title:ti,cost:'',cur:cur()})}
  else if(d.rest!==undefined)S.acts.push({id:uid(),date:d.rest,time:'',title:'Rest day: keep it light',cost:''});
  else if(d.dela!==undefined)S.acts=S.acts.filter(a=>a.id!==d.dela);
  else if(d.mv!==undefined){const[id,o]=d.mv.split('|'),a=S.acts.find(x=>x.id===id),n=shiftDate(a.date,+o);if(days().includes(n))a.date=n;else return toast('That’s outside your trip dates.')}

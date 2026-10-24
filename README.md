@@ -8,7 +8,15 @@ Use Node 20 or newer (Node 18 remains supported). Run `npm ci`, `npm test`, then
 
 On Render, use `node server.js` as the start command. Set `ACCESS_TOKEN` to protect live API calls, and `CONTACT_EMAIL` for OpenStreetMap requests. Keep API credentials in environment variables. Under **More → Connection and access code**, enter your access code and test it. Public `/api/health` checks uptime; `/api/status` checks access to protected APIs.
 
-## Version 3 changes
+## Current update: travel essentials
+
+Budget fields, payments screens, activity cost inputs and manual visa/ETIAS checklists have been removed from the interface. Existing financial data is preserved in full backups rather than deleted. The Money tab is now Rates: an independent converter and reference rate table, fetching all currencies without needing expenses. Rate dates show the latest published business day.
+
+The nearby adapter fails over between two Overpass providers and distinguishes provider failure from an empty result. Crime and safety can refresh official SAPOL suburb polygon statistics (South Australia), UK local monthly crime counts, and Smartraveller country advice. Reporting dates and fetch times are displayed. These are published monthly figures and country advisories, not a real-time police incident feed. Any unavailable source is reported explicitly. The DFAT feed may be unavailable from some networks; the official source link remains available.
+
+Sources: https://www.police.sa.gov.au/about-us/crime-statistics-map (ArcGIS map linked by SAPOL); https://www.smartraveller.gov.au/our-role/resources (public destinations-export API); https://data.police.uk/; https://frankfurter.dev/v1/.
+
+## Earlier version 3 changes (some financial and entry-rule UI superseded above)
 
 - Repaired empty `data-*` button dispatch, including location, search, adding destinations/costs/bookings, rates and backup actions.
 - Home shows the current/next destination and today's bookings, accommodation and upcoming departure. Before or after travel it previews a trip date. Transfer days show both cities; forecast and restaurant links use the arriving city.
