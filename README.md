@@ -8,6 +8,12 @@ Use Node 20 or newer (Node 18 remains supported). Run `npm ci`, `npm test`, then
 
 On Render, use `node server.js` as the start command. Set `ACCESS_TOKEN` to protect live API calls, and `CONTACT_EMAIL` for OpenStreetMap requests. Keep API credentials in environment variables. Under **More → Connection and access code**, enter your access code and test it. Public `/api/health` checks uptime; `/api/status` checks access to protected APIs.
 
+## Home rail data
+
+Home now shows the next train journey from the itinerary, editable departure/arrival stations, a date/time connection search, and a current departure board. Data is fetched on demand through `/api/rail`, protected by the existing access code. The Swiss Transport API supplies some international connections; coverage is not Europe-wide. No-results and provider failures do not establish that no trains run. Only supplied prognosis fields are labelled live; other times remain scheduled. Prices, Eurail pass-seat availability and reservation confirmation are not provided. Exact station names usually give better results. Departures are cached for one minute and connections for five minutes.
+
+Source and API terms/documentation: https://transport.opendata.ch/docs.html. Eurail operator timetable link is provided separately; this is not a Eurail account integration.
+
 ## Current update: travel essentials
 
 Budget fields, payments screens, activity cost inputs and manual visa/ETIAS checklists have been removed from the interface. Existing financial data is preserved in full backups rather than deleted. The Money tab is now Rates: an independent converter and reference rate table, fetching all currencies without needing expenses. Rate dates show the latest published business day.
