@@ -1,50 +1,40 @@
-# Eurotrip Planner (with backend)
+# Eurotrip Planner
 
-Phone-first trip planner plus a small Node server that fetches live data safely. Your trip itself is saved in your phone's browser. The server only looks up weather, exchange rates and (optionally) fares.
+Phone-first trip planner with a dependency-free Node backend. Trip records stay in your browser; live lookups run through your server.
 
-## What works now
-- Weather forecast per day (Open-Meteo, no key). Only about 16 days ahead; beyond that the app says no forecast yet.
-- Live reference exchange rates (Frankfurter, no key). These are not card or bank rates.
-- Flight fares: set FLIGHTS_API_KEY (paid provider; see below). The server endpoint is `/api/flights`; there is no screen for it in the app yet.
-- Everything from the first version: itinerary, budget, payments, packing, bookings, official entry links, ETIAS status.
+## Run and test
 
-## Not connected yet
-Accommodation prices and availability, train and bus timetables, restaurant menus. These need paid or partner access (for example a hotel affiliate API, national rail APIs, Google Places). The server returns a clear "not connected" message instead of inventing results. Add bookings by hand in the meantime.
+Use Node 20 or newer (Node 18 remains supported). Run `npm ci`, `npm test`, then `npm start`. Open http://localhost:3000. Tests use synthetic trip records and mocked provider responses; they do not verify live providers or iPhone permission prompts.
 
-## Flights: provider note
-Amadeus closed its Self-Service API on 17 July 2026, so it isn't used. The adapter targets Ignav (fare search and booking links, pay per search). It has not been called with a real key, so check its response before relying on it. Duffel is an alternative if you want to create orders yourself.
+On Render, use `node server.js` as the start command. Set `ACCESS_TOKEN` to protect live API calls, and `CONTACT_EMAIL` for OpenStreetMap requests. Keep API credentials in environment variables. Under **More → Connection and access code**, enter your access code and test it. Public `/api/health` checks uptime; `/api/status` checks access to protected APIs.
 
-## Run it
-1. Install Node 20 (nodejs.org). In this folder run `node --test test/server.test.js`, then `ACCESS_TOKEN=your-phrase node server.js`.
-2. Open http://localhost:3000.
+## Version 3 changes
 
-## Put it online (works from an iPhone)
-1. Upload this folder to a **private** GitHub repository (your itinerary is in `public/index.html`).
-2. On render.com choose New, then Web Service, and connect the repository. Leave the build command empty. Start command: `node server.js`.
-3. Under Environment add `ACCESS_TOKEN` (your secret phrase), and `FLIGHTS_API_KEY` if you have one.
-4. Open the address Render gives you in Safari, enter the access code once, then Share, then Add to Home Screen.
-Free hosting sleeps when idle, so the first request can take about a minute.
+- Repaired empty `data-*` button dispatch, including location, search, adding destinations/costs/bookings, rates and backup actions.
+- Home shows the current/next destination and today's bookings, accommodation and upcoming departure. Before or after travel it previews a trip date. Transfer days show both cities; forecast and restaurant links use the arriving city.
+- Days has one-day, seven-day and whole-trip views, date navigation and Jump to today. Activity costs preserve their original currency.
+- Edit existing destinations, activities, payments and bookings. Bookings include local departure/check-in and arrival/check-out dates and times, IANA time zones, addresses, references, cancellation deadlines and document links.
+- Home and Money include activity estimates. Record an activity payment to replace its estimate without double counting. Rates are stored as currency pairs; changing home currency does not reuse an incompatible rate. Missing rates remain explicitly excluded from totals.
+- Rail-pass use counts distinct train travel dates, not journey count. Journeys follow date order; pass payments cannot be added twice. Reservation status remains a manual record.
+- Backup/restore validates trip data and includes attached files. Existing version 1 backups are accepted. An undo snapshot preserves the trip and attachments before import. Invalid saved data is preserved for recovery instead of silently overwritten.
+- Attach PDF/image/text booking files (up to 10 MB each) for offline access. Files live in IndexedDB on this browser. Backup file import is capped at 50 MB. Deleted booking files are excluded from backups; Undo last deletion is available until the app is reloaded.
+- Download a standalone offline HTML travel pack with itinerary, bookings, costs, packing and embedded attachments. It works without the app server. It is a private snapshot, not a syncing copy.
+- The app shell is cached for offline opening. **More → Prepare app for offline use** confirms that every shell file was saved. Maps, searches, external document links, live forecasts and exchange-rate updates need internet. Map tiles are not bulk downloaded.
+- Manual entry-rule verification dates, official links and an indicative rolling Schengen counter, including entered past stays. This is not an eligibility determination. Check official government rules for nationality, residence rights and complete travel history.
+- Visible online/offline status, backup reminders, theme persistence and improved input labels/validation.
 
-## Testing checklist
-- [ ] `node --test test/server.test.js` passes.
-- [ ] Open the app on your iPhone, add it to the Home Screen, then open it in airplane mode: the itinerary still shows.
-- [ ] Days tab: Forecast works for a date within 16 days and says "no forecast yet" for January.
-- [ ] Money tab: add a EUR payment, tap Fetch live rates, check the converted total and the rate date.
-- [ ] A wrong access code is rejected.
-- [ ] Export backup, delete all data, confirm the app resets.
+Existing trip storage uses the same `eurotrip.v1` key. Data migrates in place; existing activities inherit the previous home currency. Legacy exchange rates migrate to pairs using the saved home currency. Old data cannot reveal whether that home currency was previously changed incorrectly: recheck legacy rates against a reliable source.
 
-## Security
-Passport details and payments stay in the browser. The server never receives them. API keys live only in server environment variables.
+## Live data and limits
 
-## Near me and local safety (added)
-- **Near me tab:** tap "Use my current location" (asked only when you tap). Or search a place by name. Shows a map and places within 500 m to 25 km, with filters. Your location is sent to your own server in a POST request, rounded to about 100 m, and is not stored or put in a web address. It is cleared with "Clear location". Nothing tracks you in the background.
-- **Data sources and costs:**
-  | Need | Source | Key | Cost and limits |
-  | Places | OpenStreetMap via Overpass | none | Free. Fair use only; results are cached 30 min. |
-  | Place search and area name | Nominatim | none | Free, max 1 request a second (the server enforces it). Set CONTACT_EMAIL. |
-  | Map tiles | tile.openstreetmap.org via Leaflet | none | Free for light personal use. For heavy use, switch to a paid tile provider such as MapTiler or Mapbox. |
-  | Weather, open-now time | Open-Meteo | none | Free for non-commercial use. |
-  | UK crime figures | data.police.uk | none | Free. England, Wales and Northern Ireland only. |
-- **Why not Google or Mapbox:** they give ratings, reviews and live opening hours, but need billing accounts and keys. OpenStreetMap has no ratings, so the app shows none. Google Places could be added later on the server.
-- **Not built:** push alerts, route safety or lit-street routing, public transport times, ratings, and crime data outside the UK. The app says so on screen instead of guessing. Directions open in Apple Maps or Google Maps.
-- **Location needs HTTPS.** Render provides it. Test on a real iPhone: allow, deny, turn off Location Services, and move to a different place.
+Weather: Open-Meteo, approximately 16 days ahead. Exchange rates: Frankfurter reference rates, not bank/card rates. Nearby places: OpenStreetMap/Overpass and Nominatim; no ratings or verified pricing. Maps: Leaflet/OpenStreetMap. Official UK crime counts: data.police.uk, subject to coverage and delay. Directions open in Apple or Google Maps. Live providers can be unavailable or change policies; check the provider's own site before relying on results.
+
+Flight endpoint: optional provider adapter requiring `FLIGHTS_API_KEY`; no flight-search UI and no verified provider integration is claimed. Hotels, train/bus timetables, menus, ratings, accounts, cloud sync and push notifications are not connected. Enter bookings manually and use official operator websites.
+
+## Update and iPhone checks
+
+After deployment, close and reopen Safari/the Home Screen app to activate an available service-worker update. Do not clear website data to update: that deletes your trip. Export a fresh backup first.
+
+On a real iPhone, verify Add to Home Screen; allow/deny location; opening and saving attached files; app launch in airplane mode after offline preparation; downloading/restoring a backup; and opening the downloaded travel pack. iOS document handling and storage eviction depend on browser settings. Keep a backup outside the phone. Private browsing or full device storage may prevent persistent saves.
+
+The repository includes the initial itinerary in `public/app.js`; anyone with repository or public site access can read the seeded itinerary. Access codes protect APIs, not static app files. Personal changes, passport expiry, payments and attachments are not uploaded to the backend or committed to the repository.

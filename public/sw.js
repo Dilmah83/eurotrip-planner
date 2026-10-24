@@ -1,5 +1,11 @@
-const C='eurotrip-v2',F=['./','./index.html','./manifest.webmanifest','./icon-180.png'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(F)));self.skipWaiting()});
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x))))));
-self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.pathname.includes('/api/')||u.origin!==location.origin)return;
-e.respondWith(fetch(e.request).then(r=>{const cp=r.clone();caches.open(C).then(c=>c.put(e.request,cp));return r}).catch(()=>caches.match(e.request).then(m=>m||caches.match('./index.html'))))});
+const CACHE='eurotrip-v3-20261024',SHELL=['./','./index.html','./app.js','./planner.js','./manifest.webmanifest','./icon-180.png','./icon-512.png'];
+async function cacheApp(){const c=await caches.open(CACHE);await c.addAll(SHELL);}
+self.addEventListener('install',event=>event.waitUntil(cacheApp()));
+self.addEventListener('activate',event=>event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('eurotrip-')&&k!==CACHE).map(k=>caches.delete(k)))),self.clients.claim()])));
+self.addEventListener('message',event=>{if(event.data?.type==='CACHE_APP')event.waitUntil(cacheApp().then(()=>event.ports[0]?.postMessage({ok:true})).catch(()=>event.ports[0]?.postMessage({ok:false,error:'Could not save every app file. Stay online and retry.'})));});
+self.addEventListener('fetch',event=>{
+ const u=new URL(event.request.url);if(event.request.method!=='GET'||u.origin!==location.origin||u.pathname.startsWith('/api/'))return;
+ // Only app files are cached. No live responses, access codes, map tiles or arbitrary documents.
+ if(!SHELL.some(p=>new URL(p,self.registration.scope).pathname===u.pathname))return;
+ event.respondWith(fetch(event.request).then(async r=>{if(r.ok){const c=await caches.open(CACHE);await c.put(event.request,r.clone())}return r}).catch(async()=>{const c=await caches.open(CACHE);const hit=await c.match(event.request);return hit||(event.request.mode==='navigate'?await c.match('./index.html'):new Response('Offline',{status:503}))}));
+});

@@ -3,7 +3,7 @@ const http=require('http'),fs=require('fs'),path=require('path');
 const PORT=process.env.PORT||3000,TOKEN=process.env.ACCESS_TOKEN||'',PUB=path.join(__dirname,'public');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript','.png':'image/png','.webmanifest':'application/manifest+json','.json':'application/json'};
 const cache=new Map(),hits=new Map();
-async function cached(key,ttl,fn){const h=cache.get(key);if(h&&h.exp>Date.now())return h.v;const v=await fn();cache.set(key,{v,exp:Date.now()+ttl});return v}
+async function cached(key,ttl,fn){const h=cache.get(key);if(h&&h.exp>Date.now())return h.v;const v=await fn();if(cache.size>=500)cache.delete(cache.keys().next().value);cache.set(key,{v,exp:Date.now()+ttl});return v}
 async function getJSON(url,opt={},tries=3){for(let i=0;i<tries;i++){try{const r=await fetch(url,{...opt,signal:AbortSignal.timeout(10000)});
  if(r.status===429||r.status>=500)throw new Error('HTTP '+r.status);if(!r.ok){const e=new Error('HTTP '+r.status);e.fatal=true;throw e}return await r.json()}
  catch(e){if(e.fatal||i===tries-1)throw e;await new Promise(s=>setTimeout(s,400*2**i))}}}
@@ -42,7 +42,7 @@ function openNow(s,off){if(!s)return null;if(s.trim()==='24/7')return true;
   let hit=!m[1];if(m[1])for(const p of m[1].split(',')){const[a,b2]=p.split('-'),ia=ORD.indexOf(a),ib=b2?ORD.indexOf(b2):ia;if(ia<0||ib<0)return null;if(ia<=ib?(di>=ia&&di<=ib):(di>=ia||di<=ib))hit=true}
   if(hit)res=/^\d/.test(m[2])&&m[2].split(',').some(t=>{const[x,y]=t.split('-').map(z=>+z.slice(0,2)*60+ +z.slice(3));return x<y?(mi>=x&&mi<y):(mi>=x||mi<y)})}
  return res===null?false:res}
-let lastNom=0;const nomWait=async()=>{const w=1100-(Date.now()-lastNom);if(w>0)await new Promise(r=>setTimeout(r,w));lastNom=Date.now()};
+let lastNom=0,nomQueue=Promise.resolve();const nomWait=()=>{const next=nomQueue.then(async()=>{const w=1100-(Date.now()-lastNom);if(w>0)await new Promise(r=>setTimeout(r,w));lastNom=Date.now()});nomQueue=next.catch(()=>{});return next};
 const FIL={attractions:'["tourism"~"^(attraction|viewpoint|artwork)$"]',historic:'["historic"]',museums:'["tourism"~"^(museum|gallery)$"]',parks:'["leisure"~"^(park|garden|nature_reserve)$"]',markets:'["amenity"="marketplace"]',food:'["amenity"~"^(restaurant|cafe|bar|pub)$"]',entertainment:'["amenity"~"^(nightclub|theatre|cinema)$"]',transport:'["railway"="station"]',health:'["amenity"~"^(pharmacy|hospital|police)$"]'};
 const KIND=t=>t.tourism==='museum'||t.tourism==='gallery'?['Museums and galleries',true]:t.historic?['Historic sites',false]:t.tourism?['Attractions and viewpoints',false]:t.leisure?['Parks and gardens',false]:t.amenity==='marketplace'?['Markets',false]:['restaurant','cafe','bar','pub'].includes(t.amenity)?['Food and drink',true]:['nightclub','theatre','cinema'].includes(t.amenity)?['Entertainment and nightlife',true]:t.railway?['Transport stations',null]:['Health and emergency',true];
 async function nearby(q,b){const p=pt(b);if(!p)return[400,{error:'lat and lon are required'}];
@@ -76,6 +76,7 @@ const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'htt
  if(u.pathname.startsWith('/api/')){
   if(limited(req.socket.remoteAddress||'?'))return send(res,429,{error:'Too many requests. Wait a minute.'});
   if(TOKEN&&req.headers['x-access-token']!==TOKEN)return send(res,401,{error:'Access code needed'});
+  if(u.pathname==='/api/status')return send(res,200,{ok:true,version:3,authenticated:!!TOKEN});
   const h=ROUTES[u.pathname];if(!h)return send(res,404,{error:'Unknown endpoint'});
   try{const bd=req.method==='POST'?await body(req):{};const[c,o]=await h(u.searchParams,bd);return send(res,c,o)}catch(e){return send(res,502,{error:'The data provider is unavailable. Try again, or use the official website.'})}}
  let p=path.normalize(path.join(PUB,decodeURIComponent(u.pathname==='/'?'/index.html':u.pathname)));
