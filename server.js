@@ -70,7 +70,8 @@ async function crime(q,b){const p=pt(b);if(!p)return[400,{error:'lat and lon are
  catch(e){return[200,{status:'unavailable',message:'Official crime figures couldn\u2019t be loaded for this point. It may be outside coverage.',source:'https://data.police.uk/'}]}}
 const notYet=name=>async()=>[501,{error:name+' search is not connected yet. Use the provider\'s own website and record the booking manually.'}];
 const liveData=require('./live-data')({getJSON,cached});
-const ROUTES={'/api/rates':liveData.rates,'/api/safety':liveData.safety,'/api/nearby':nearby,'/api/reverse':reverse,'/api/geocode':geocode,'/api/crime':crime,'/api/weather':weather,'/api/fx':fx,'/api/flights':flights,'/api/hotels':notYet('Accommodation'),'/api/transport':notYet('Train and bus'),'/api/restaurants':notYet('Restaurant and menu')};
+const railData=require('./rail-data')({getJSON,cached});
+const ROUTES={'/api/rail':railData,'/api/rates':liveData.rates,'/api/safety':liveData.safety,'/api/nearby':nearby,'/api/reverse':reverse,'/api/geocode':geocode,'/api/crime':crime,'/api/weather':weather,'/api/fx':fx,'/api/flights':flights,'/api/hotels':notYet('Accommodation'),'/api/transport':notYet('Train and bus'),'/api/restaurants':notYet('Restaurant and menu')};
 const send=(res,code,body,type='application/json')=>{res.writeHead(code,{'Content-Type':type,'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cache-Control':type==='application/json'?'no-store':'no-cache'});res.end(typeof body==='string'||Buffer.isBuffer(body)?body:JSON.stringify(body))};
 const server=http.createServer(async(req,res)=>{try{const u=new URL(req.url,'http://x');
  if(u.pathname==='/api/health')return send(res,200,{ok:true});
