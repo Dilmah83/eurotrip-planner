@@ -187,7 +187,7 @@ struct PassScreen: View {
     }
     func legBinding(_ key: String, _ field: String) -> Binding<String> {
         Binding(get: { store.archive.trip["legs"]?.object[key]?.object.text(field).nilIfEmpty ?? (field == "mode" ? "Not set" : "Unknown") }, set: { value in
-            do { var next = store.archive; var t = next.trip; var all = t["legs"]?.object ?? [:]; var leg = all[key]?.object ?? [:]; if field == "mode" && value == "Not set" { leg.removeValue(forKey: field) } else { leg[field] = .string(value) }; all[key] = .object(leg); t["legs"] = .object(all); next.trip = t; try store.commit(next) } catch { error = error.localizedDescription }
+            do { var next = store.archive; var t = next.trip; var all = t["legs"]?.object ?? [:]; var leg = all[key]?.object ?? [:]; if field == "mode" && value == "Not set" { leg.removeValue(forKey: field) } else { leg[field] = .string(value) }; all[key] = .object(leg); t["legs"] = .object(all); next.trip = t; try store.commit(next) } catch { self.error = error.localizedDescription }
         })
     }
 }
