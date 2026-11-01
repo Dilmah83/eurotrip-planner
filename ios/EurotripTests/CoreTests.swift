@@ -84,3 +84,29 @@ final class CoreTests: XCTestCase {
     func testListedAccommodationAppearsWithoutInventedCheckoutDate() throws { let a=try ItineraryImport.parse("1/3/50 | | Paris | Example Hotel | |\n2/3/50 | | Paris | Example Hotel | |");XCTAssertEqual(a.bookings(on:"2050-03-02").count,1);XCTAssertTrue(a.records("docs")[0]["end"].isEmpty) }
     func testInvalidTableDatesAndTimesFailHonestly() { XCTAssertThrowsError(try ItineraryImport.parse("30/2/50 | | Paris | | |"));XCTAssertThrowsError(try ItineraryImport.parse("1/3/50 | 25:99 | Paris | | |"));XCTAssertThrowsError(try ItineraryImport.parse("not an itinerary")) }
 }
+
+extension CoreTests {
+    func testHotelScreenshotLabelsPopulateWithoutInventingZones() throws {
+        let p=try BookingImport.parse("Hotel name: Example Hotel\nConfirmation number: ABC123\nCheck-in: Sunday 29 November 2026 3:00 PM\nCheck-out: 1 December 2026 10:00 AM\nAddress: 1 Example Street")
+        XCTAssertEqual(p.record["t"],"Example Hotel");XCTAssertEqual(p.record["kind"],"Accommodation");XCTAssertEqual(p.record["date"],"2026-11-29");XCTAssertEqual(p.record["end"],"2026-12-01");XCTAssertEqual(p.record["time"],"15:00");XCTAssertEqual(p.record["ref"],"ABC123");XCTAssertTrue(p.record["tz"].isEmpty);XCTAssertTrue(p.record["note"].contains("Recognised text"))
+    }
+    func testFlightScreenshotKeepsLocalTimesAndSeparateDates() throws {
+        let p=try BookingImport.parse("Flight number\nAB123\nBooking reference\nXYZ789\nDeparture date: 2026-11-29\nDeparture time: 11:00\nArrival date: 2026-11-30\nArrival time: 06:45\nFrom: AAA\nTo: BBB")
+        XCTAssertEqual(p.record["kind"],"Flight");XCTAssertEqual(p.record["t"],"AB123");XCTAssertEqual(p.record["address"],"AAA → BBB");XCTAssertEqual(p.record["end"],"2026-11-30");XCTAssertEqual(p.record["endTime"],"06:45");XCTAssertTrue(p.record["arrivalTz"].isEmpty)
+    }
+    func testScreenshotAmbiguousNumericDatesAndYearlessDatesStayBlank() throws {
+        XCTAssertNil(BookingImport.date("03/04/2027"));XCTAssertNil(BookingImport.date("4 March"));XCTAssertNil(BookingImport.date("2026-02-30"));XCTAssertEqual(BookingImport.date("23/12/2026"),"2026-12-23")
+        let p=try BookingImport.parse("Hotel: Example\nCheck-in: 03/04/2027\nCheck-out: 04/05/2027")
+        XCTAssertTrue(p.record["date"].isEmpty);XCTAssertTrue(p.record["end"].isEmpty);XCTAssertTrue(p.warnings.contains{$0.contains("ambiguous")})
+    }
+    func testScreenshotNeverUsesPINOrBoardingTimeAsBookingReferenceOrDeparture() throws {
+        let p=try BookingImport.parse("Boarding pass\nPIN: 1234\nBoarding time: 09:30\nPassenger: Example Traveller")
+        XCTAssertTrue(p.record["ref"].isEmpty);XCTAssertTrue(p.record["time"].isEmpty);XCTAssertTrue(p.record["date"].isEmpty)
+        let q=try BookingImport.parse("Hotel name\nCheck-in\n29 November 2026")
+        XCTAssertTrue(q.record["t"].isEmpty)
+    }
+    func testScreenshotParsingFailuresAndTimeBoundaries() {
+        XCTAssertThrowsError(try BookingImport.parse(" \n"));XCTAssertThrowsError(try BookingImport.parse(String(repeating:"a",count:60001)))
+        XCTAssertEqual(BookingImport.time("12:00 AM"),"00:00");XCTAssertEqual(BookingImport.time("12:00 PM"),"12:00");XCTAssertNil(BookingImport.time("25:00"));XCTAssertNil(BookingImport.time("10:99"))
+    }
+}

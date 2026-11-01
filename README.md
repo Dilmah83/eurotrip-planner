@@ -66,3 +66,7 @@ The repository includes the initial itinerary in `public/app.js`; anyone with re
 ## Native iPhone / Xcode transition
 
 Open `ios/Eurotrip.xcodeproj`. [Native setup, migration, privacy and feature coverage](ios/README.md) describes the SwiftUI app, existing-backup import, private itinerary-table import, offline files, Maps, Calendar and reuse of this Render backend. The website remains available; native records do not silently replace browser storage. Personal itinerary tables are not embedded in the public native source.
+
+### Native Eurostar and screenshot import
+
+The iPhone build in `ios/` supports on-device hotel/flight screenshot recognition and Google Routes-based Eurostar journey lookup. Deploy this backend and set server-only `GOOGLE_MAPS_API_KEY` with Routes API and billing enabled to activate Google transit lookup; no key is bundled. Eurostar coverage is partial, with official operator fallback, and Google transit's 100-day forward window applies. See [native setup and limitations](ios/README.md). Public [privacy information](public/privacy.html) and [terms](public/terms.html) accompany the API integration.

@@ -6,6 +6,7 @@ struct BookingsScreen: View {
     @EnvironmentObject private var store: TripStore
     var body: some View {
         List {
+            NavigationLink { BookingScreenshotScreen() } label: { Label("Import hotel or flight screenshot", systemImage: "photo.badge.plus") }
             NavigationLink { RecordEditor(type: "docs", original: nil) } label: { Label("Add booking", systemImage: "plus") }
             ForEach(store.archive.records("docs").sorted { $0["date"] + $0["time"] < $1["date"] + $1["time"] }) { record in
                 NavigationLink { BookingDetail(record: record) } label: { RecordRow(record: record, type: "docs"); if store.archive.files.contains(where: { $0.id == record.id }) { Image(systemName: "paperclip").accessibilityLabel("Offline attachment") } }

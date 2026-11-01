@@ -4,6 +4,7 @@ struct ExploreScreen: View {
     var body: some View {
         List {
             NavigationLink { NearbyScreen() } label: { Label("Nearby places and native Maps", systemImage: "map") }
+            NavigationLink { EurostarScreen() } label: { Label("Eurostar timetables", systemImage: "tram.fill") }
             NavigationLink { RailScreen() } label: { Label("National rail timetables", systemImage: "tram") }
             NavigationLink { RatesScreen() } label: { Label("Exchange-rate converter", systemImage: "arrow.left.arrow.right") }
             NavigationLink { WeatherScreen() } label: { Label("Weather forecast", systemImage: "cloud.sun") }
@@ -134,6 +135,7 @@ struct RailScreen: View {
     var provider: RailProvider { Self.providers.first { $0.id == country } ?? Self.providers[0] }
     var body: some View {
         Form {
+            NavigationLink("Eurostar · international journeys") { EurostarScreen() }
             Picker("Country", selection: $country) { ForEach(Self.providers) { Text($0.name).tag($0.id) } }.onChange(of: country) { _, _ in result = nil; error = "" }
             Link("Official operator timetable", destination: URL(string: provider.website)!)
             if let api = provider.api {

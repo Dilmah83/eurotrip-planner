@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import Eurotrip
 
 final class NativeStoreTests: XCTestCase {
@@ -52,5 +53,28 @@ final class TravelClientTests: XCTestCase {
     func testOfflineFailureDoesNotReturnMockLiveData() async {
         TravelFixture.response={_ in throw URLError(.notConnectedToInternet)}
         do{_=try await client().request("rates");XCTFail("Must not fabricate data")}catch{}
+    }
+}
+
+extension NativeStoreTests {
+    @MainActor func testScreenshotSaveIsAtomicPreservesExistingTripAndCanUndo() throws {
+        let dir=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString);defer{try? FileManager.default.removeItem(at:dir)}
+        let store=TripStore(directory:dir);var old=TripRecord.new();old["t"]="Existing booking";try store.save(old,type:"docs")
+        var scanned=try BookingImport.parse("Hotel: Example Hotel\nCheck-in: 2026-12-01").record
+        let before=store.archive;scanned["date"]="invalid";XCTAssertThrowsError(try store.saveScreenshotBooking(scanned,jpeg:Data("fixture".utf8)));XCTAssertEqual(store.archive,before)
+        scanned["date"]="2026-12-01";try store.saveScreenshotBooking(scanned,jpeg:Data("fixture".utf8));XCTAssertEqual(store.archive.records("docs").count,2);XCTAssertEqual(store.archive.files.count,1)
+        let reopened=TripStore(directory:dir);XCTAssertEqual(reopened.archive,store.archive);try reopened.undo();XCTAssertEqual(reopened.archive,before)
+    }
+}
+
+final class ScreenshotOCRTests:XCTestCase {
+    func testInvalidImageFailsWithoutInventedBooking() async {
+        do{_=try await BookingOCR.recognise(Data("not an image".utf8));XCTFail("Must reject invalid image")}catch{}
+    }
+    @MainActor func testGeneratedHotelScreenshotRecognisedOnDevice() async throws {
+        let renderer=UIGraphicsImageRenderer(size:CGSize(width:1200,height:800))
+        let image=renderer.image{context in UIColor.white.setFill();context.fill(CGRect(x:0,y:0,width:1200,height:800));let lines=["Hotel name: Example Hotel","Booking reference: ABC123","Check-in: 29 November 2026","Check-out: 1 December 2026"];for (index,line) in lines.enumerated(){(line as NSString).draw(at:CGPoint(x:40,y:40+index*100),withAttributes:[.font:UIFont.systemFont(ofSize:36),.foregroundColor:UIColor.black])}}
+        let data=try XCTUnwrap(image.pngData());let(text,jpeg)=try await BookingOCR.recognise(data);let parsed=try BookingImport.parse(text)
+        XCTAssertEqual(parsed.record["t"],"Example Hotel");XCTAssertEqual(parsed.record["date"],"2026-11-29");XCTAssertFalse(jpeg.isEmpty)
     }
 }

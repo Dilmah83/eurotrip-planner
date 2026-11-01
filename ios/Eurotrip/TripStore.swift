@@ -51,6 +51,16 @@ import SwiftUI
         let attachment = TripAttachment(id: booking, name: (name as NSString).lastPathComponent, data: "data:\(mime);base64," + data.base64EncodedString())
         var next = archive; next.files.removeAll { $0.id == booking }; next.files.append(attachment); try commit(next, snapshot: true)
     }
+    func saveScreenshotBooking(_ record: TripRecord, jpeg: Data?) throws {
+        try TripArchive.validate(record, type: "docs")
+        var next = archive
+        var records = next.records("docs"); records.append(record); next.setRecords("docs", records)
+        if let jpeg {
+            guard jpeg.count <= 10 * 1024 * 1024 else { throw TripError.invalid("Screenshot exceeds 10 MB.") }
+            next.files.append(TripAttachment(id: record.id, name: "booking-screenshot.jpg", data: "data:image/jpeg;base64," + jpeg.base64EncodedString()))
+        }
+        try commit(next, snapshot: true)
+    }
     func previewFile(_ id: String) throws -> URL {
         guard let attachment = archive.files.first(where: { $0.id == id }), let bytes = attachment.bytes else { throw TripError.invalid("No offline attachment for this booking.") }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Eurotrip-preview")
