@@ -22,7 +22,7 @@ enum BookingImport {
             return ""
         }
         let labelledHotel = value(["Hotel name", "Property name", "Hotel", "Property"])
-        let hotel = labelledHotel.isEmpty ? (lines.prefix(5).first { $0.range(of: #"\bhotel\b"#, options:[.regularExpression,.caseInsensitive]) != nil && !$0.lowercased().contains("confirmation") && !$0.lowercased().contains("booking") && $0.count < 100 } ?? "") : labelledHotel
+        let hotel = labelledHotel.isEmpty ? (lines.prefix(5).first { $0.range(of: #"\bhotel\b"#, options:[.regularExpression,.caseInsensitive]) != nil && !$0.lowercased().contains("confirmation") && !$0.lowercased().contains("booking") && !fieldLabels.contains($0.lowercased().trimmingCharacters(in:CharacterSet(charactersIn:":："))) && $0.count < 100 } ?? "") : labelledHotel
         let flight = value(["Flight number", "Flight no", "Flight"])
         let isFlight = !flight.isEmpty || text.range(of: #"\b(boarding pass|flight confirmation|departure airport)\b"#, options: [.regularExpression,.caseInsensitive]) != nil || (hotel.isEmpty && !value(["Departure", "Departure date"]).isEmpty && !value(["Arrival", "Arrival date"]).isEmpty)
         var r = TripRecord.new(); r["kind"] = isFlight ? "Flight" : "Accommodation"

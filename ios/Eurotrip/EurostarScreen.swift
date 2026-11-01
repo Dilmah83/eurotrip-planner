@@ -62,8 +62,8 @@ struct EurostarScreen: View {
             }
             Section("Privacy and data") {
                 Text("Only the selected stations and departure time are sent through your Eurotrip server to Google. Google results stay on this screen and are not stored in your trip or placed on Apple Maps. The server requires a Google Routes API key; you can use Eurostar's website without one.").font(.caption)
-                Link("Eurotrip privacy",destination:URL(string:TravelClient.current().endpoint+"/privacy.html")!)
-                Link("Eurotrip terms",destination:URL(string:TravelClient.current().endpoint+"/terms.html")!)
+                if let url=TravelLinks.url(TravelClient.current().endpoint+"/privacy.html") { Link("Eurotrip privacy",destination:url) }
+                if let url=TravelLinks.url(TravelClient.current().endpoint+"/terms.html") { Link("Eurotrip terms",destination:url) }
                 Link("Google terms",destination:URL(string:"https://policies.google.com/terms")!)
                 Link("Google privacy policy",destination:URL(string:"https://policies.google.com/privacy")!)
             }
@@ -85,7 +85,10 @@ struct EurostarScreen: View {
         let captured=[from,to,date,time]
         do{
             guard let instant=TripDay.instant(day:date,time:time,zone:origin.zone) else{throw TripError.invalid("Enter a valid date and 24-hour time. Ambiguous daylight-saving times must be checked with Eurostar.")}
-            let value=try await TravelClient.current().request("rail",query:["provider":"eurostar"],body:["from":.string(from),"to":.string(to),"departureTime":.string(ISO8601DateFormatter().string(from:instant))])
+            let client=TravelClient.current()
+            let status=try await client.request("status")
+            guard status.object["googleRoutesConfigured"]?.bool == true else { throw TripError.invalid("Eurostar lookup is not enabled on this server. Deploy the updated Eurotrip backend and configure its Google Routes API key, or use Eurostar below.") }
+            let value=try await client.request("rail",query:["provider":"eurostar"],body:["from":.string(from),"to":.string(to),"departureTime":.string(ISO8601DateFormatter().string(from:instant))])
             if captured == [from,to,date,time]{result=value}
         }catch{self.error=error.localizedDescription}
     }
