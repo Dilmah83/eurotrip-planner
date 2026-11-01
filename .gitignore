@@ -1,3 +1,10 @@
 node_modules/
 .env
 *.log
+
+.build/
+.swiftpm/
+__pycache__/
+DerivedData/
+*.xcresult/
+xcuserdata/

@@ -28,7 +28,7 @@ function normalize(data){
   const pair=key.includes('>')?key:key+'>'+s.setup.cur;
   if(pair.split('>').every(currencyOK)&&pair.split('>').length===2)s.rates[pair]={r:+v.r,at:typeof v.at==='string'?v.at:''};
  }
- s.rail={...blank().rail,...data.rail};s.legs={};for(const [k,v] of Object.entries(data.legs||{})){if(!v||typeof v!=='object'||(v.mode&&!['Train (pass day)','Train (own ticket)','Ferry','Bus','Flight'].includes(v.mode))||(v.res&&!['Unknown','Not needed','Needed','Booked'].includes(v.res)))throw Error('Invalid journey record.');s.legs[k]={mode:v.mode,res:v.res};}
+ s.rail={...blank().rail,...data.rail};s.legs={};for(const [k,v] of Object.entries(data.legs||{})){if(!v||typeof v!=='object'||(v.mode&&!['Train (pass day)','Train (own ticket)','Ferry','Bus','Car','Flight'].includes(v.mode))||(v.res&&!['Unknown','Not needed','Needed','Booked'].includes(v.res)))throw Error('Invalid journey record.');s.legs[k]={mode:v.mode,res:v.res};}
  if(!positive(s.rail.days)||!positive(s.rail.price||0)||!currencyOK(s.rail.cur))throw Error('Invalid rail pass.');
  s.etias={status:typeof data.etias?.status==='string'?data.etias.status:'Needs manual verification',checked:dateOK(data.etias?.checked)?data.etias.checked:''};
  s.prior=Array.isArray(data.prior)?data.prior:[];if(s.prior.length>100||s.prior.some(x=>!dateOK(x.from)||!dateOK(x.to)||x.to<x.from||diff(x.from,x.to)>730))throw Error('Invalid previous Schengen stays.');

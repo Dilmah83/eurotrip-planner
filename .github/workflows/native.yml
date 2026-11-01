@@ -1,0 +1,35 @@
+name: Native iPhone
+on:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --package-path ios
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Choose an installed iPhone simulator
+        run: |
+          xcrun simctl list devices available -j > /tmp/sims.json
+          python3 - <<'PY'
+          import json, os
+          devices=json.load(open('/tmp/sims.json'))['devices']
+          phone=next(d for ds in devices.values() for d in ds if d['name'].startswith('iPhone'))
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('PHONE='+phone['udid']+'\n')
+          PY
+      - name: Build and test native app
+        run: xcodebuild -project ios/Eurotrip.xcodeproj -scheme Eurotrip -destination "platform=iOS Simulator,id=$PHONE" -resultBundlePath NativeResults CODE_SIGNING_ALLOWED=NO test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-results
+          path: NativeResults.xcresult
